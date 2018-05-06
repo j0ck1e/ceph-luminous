@@ -1,0 +1,5 @@
+- include_tasks: "{{ item }}"
+  loop:
+    - timedata.yml
+    - repo.yml
+    - predisk.yml

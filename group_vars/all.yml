@@ -1,0 +1,24 @@
+ceph:
+  repo:
+    mirror: http://mirrors.ustc.edu.cn/ceph/debian-luminous/
+    key: http://mirrors.ustc.edu.cn/ceph/keys/release.asc
+    filename: ceph-luminous
+  hosts:
+    s241:
+      devices:
+        # ssd: [/dev/sda, /dev/sdb, /dev/sdc, /dev/sdd]
+        ssd:
+          - /dev/sda
+          - /dev/sdb
+          - /dev/sdc
+          - /dev/sdd
+    s242:
+      devices:
+        hdd:
+        NVMe_ssd:
+        # ssd: [/dev/sdb, /dev/sdc, /dev/sdd, /dev/sde]
+        ssd:
+          - /dev/sda
+          - /dev/sdb
+          - /dev/sdc
+          - /dev/sdd

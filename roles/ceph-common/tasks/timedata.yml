@@ -1,0 +1,15 @@
+- name: set timezone to Asia/Shanghai
+  timezone:
+    name: Asia/Shanghai
+
+- name: install ntpdate package
+  package:
+    name: ntpdate
+    state: present
+
+- name: create ntpdate cron
+  cron:
+    name: "sync time by ntpdate"
+    minute: "5"
+    hour: "0"
+    job: "( /usr/sbin/ntpdate pool.ntp.org && /sbin/hwclock --systohc ) 2>&1 | /usr/bin/logger -p daemon.info -t ntpdate"

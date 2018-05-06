@@ -1,0 +1,19 @@
+- name: kernel parameter
+  blockinfile:
+    path: /etc/sysctl.conf
+    block: |
+      kernel.pid_max = 4194303
+      fs.file-max = 26234859
+
+- name: change ulimit
+  blockinfile:
+    path: /etc/security/limits.conf
+    block: |
+      *  soft  nofile  65536
+      *  hard  nofile  65536
+
+- name: change disk scheduler persistent
+  blockinfile:
+    path: /lib/udev/rules.d/60-ssd-scheduler.rules
+    block: |
+      SUBSYSTEM=="block", ATTR{device/model}=="Samsung SSD 850", ACTION=="add|change", KERNEL=="sd[a-d]", ATTR{queue/scheduler}="noop",ATTR{queue/read_ahead_kb}="8192"

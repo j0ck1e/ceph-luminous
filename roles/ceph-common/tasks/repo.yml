@@ -1,0 +1,9 @@
+- name: add repo key
+  apt_key:
+    url: "{{ ceph.repo.key }}"
+
+- name: add ceph repo
+  apt_repository:
+    repo: deb {{ ceph.repo.mirror}} {{ ansible_distribution_release }} main
+    filename: "{{ ceph.repo.filename }}"
+    validate_certs: no

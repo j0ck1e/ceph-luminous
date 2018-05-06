@@ -1,0 +1,9 @@
+- name: purge disk partitions
+  parted:
+    device: "{{ item }}"
+    # device: /dev/sdb
+    number: 1
+    state: absent
+  loop: "{{ ceph.hosts[ansible_nodename].devices.ssd }}"
+  # debug:
+  #   msg: "{{ ceph.hosts[ansible_nodename].devices.ssd }}"
