@@ -1,4 +1,6 @@
 ceph:
+  osd_objectstore: bluestore
+  fsid: e0b7e811-269c-481d-9ec8-206a6301302a
   repo:
     mirror: http://mirrors.ustc.edu.cn/ceph/debian-luminous/
     key: http://mirrors.ustc.edu.cn/ceph/keys/release.asc

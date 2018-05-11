@@ -1,9 +1,21 @@
-- name: kernel parameter
-  blockinfile:
-    path: /etc/sysctl.conf
-    block: |
-      kernel.pid_max = 4194303
-      fs.file-max = 26234859
+---
+- name: get default vm.min_free_kbytes
+  command: sysctl -b vm.min_free_kbytes
+  register: default_vm_min_free_kbytes
+
+- name: set_fact vm_min_free_kbytes
+  set_fact:
+    vm_min_free_kbytes: "{{ 4194303 if ansible_memtotal_mb >= 49152 else default_vm_min_free_kbytes.stdout }}"
+
+- name: tuning kern params
+  sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    sysctl_set: yes
+    reload: yes
+  loop: "{{ os_tuning_params }}"
+  when:
+    - osd_objectstore == 'bluestore'
 
 - name: change ulimit
   blockinfile:
@@ -15,5 +27,24 @@
 - name: change disk scheduler persistent
   blockinfile:
     path: /lib/udev/rules.d/60-ssd-scheduler.rules
+    create: yes
     block: |
       SUBSYSTEM=="block", ATTR{device/model}=="Samsung SSD 850", ACTION=="add|change", KERNEL=="sd[a-d]", ATTR{queue/scheduler}="noop",ATTR{queue/read_ahead_kb}="8192"
+
+
+- name: get cpu mode
+  debug:
+    msg: "{{ lookup('file', '/sys/devices/system/cpu/cpufreq/policy1/scaling_governor') }}"
+  register: cpu_mode
+
+- name: cpu core run as performance
+  shell: "/bin/sh -c 'echo performance | sudo tee /sys/devices/system/cpu/cpufreq/policy*/scaling_governor'"
+  when: cpu_mode.stdout != 'performance'
+
+
+- name: install hugepages
+  package:
+    name: hugepages
+
+- name: disable transparent hugepage
+  command: hugeadm --thp-never

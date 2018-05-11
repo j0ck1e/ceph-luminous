@@ -1,0 +1,11 @@
+disable_transparent_hugepage: true
+os_tuning_params:
+  - { name: fs.file-max, value: 26234859 }
+  - { name: kernel.pid_max, value: 4194303 }
+  - { name: vm.swappiness, value: 0 }
+  - { name: vm.zone_reclaim_mode, value: 0 }
+  - { name: vm.min_free_kbytes, value: "{{ vm_min_free_kbytes }}" }
+  - { name: fs.aio-max-nr, value: 1048576}
+
+# Use this then backend is filestore
+ceph_tcmalloc_max_total_thread_cache: 268435456
