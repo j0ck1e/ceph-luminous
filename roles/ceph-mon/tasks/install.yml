@@ -1,5 +1,7 @@
 - name: install packages
   package:
-    name: "{{ item }}"
+    name: "{{ item_package }}"
   loop:
     - ceph-mon
+  loop_control:
+    loop_var: item_package

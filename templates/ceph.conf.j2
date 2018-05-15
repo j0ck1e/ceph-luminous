@@ -1,0 +1,16 @@
+[global]
+fsid = {{ ceph.fsid }}
+mon initial members = {% for host in groups['ceph-mon'] %}
+{{ hostvars[host].hostname }}{% if not loop.last %}, {% endif %}
+{% endfor %}
+
+mon host = {% for host in groups['ceph-mon'] %}
+{{ host }}{% if not loop.last %}, {% endif %}
+{% endfor %}
+
+public network = {{ ceph.public_network }}
+cluster network = {{ ceph.cluster_network }}
+auth cluster required = cephx
+auth service required = cephx
+auth client required = cephx
+mon allow pool delete = true

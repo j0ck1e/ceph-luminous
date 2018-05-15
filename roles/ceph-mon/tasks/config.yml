@@ -1,0 +1,13 @@
+# - name: get mon hostname
+#   debug:
+#     msg: "{{ item.hostname }}"
+#   loop:
+#     - "{{ groups['ceph-mon'] }}"
+
+
+- name: copy ceph.conf.j2
+  template:
+    src: ceph.conf.j2
+    dest: /etc/ceph/ceph.conf
+    group: ceph
+    owner: ceph

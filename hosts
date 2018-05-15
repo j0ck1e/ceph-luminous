@@ -1,7 +1,8 @@
 [ceph-mon]
-172.16.8.241
+172.16.8.241  hostname=s241.jy.dev.tonyc.cn
+207.148.124.114  hostname=s114.jy.dev.tonyc.cn
 
 
 [ceph-osd]
-172.16.8.241
-172.16.8.242
+172.16.8.241  hostname=s241.jy.dev.tonyc.cn
+172.16.8.242  hostname=s242.jy.dev.tonyc.cn

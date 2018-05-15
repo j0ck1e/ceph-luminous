@@ -1,43 +1,33 @@
-- hosts: all
-    vars:
-      delegate_facts_host: True
+# - hosts: all
+#   gather_facts: False
+#   tasks:
+#     - name: get python2
+#       stat:
+#         path: /usr/bin/python
+#       ignore_errors: yes
+#       register: python2_exist
+#
+#     - name: install python2
+#       raw: apt-get -y install python-simplejson
+#       ignore_errors: yes
+#       when: python2_exist.failed == true
 
-    tasks:
-      - name: check for python2
-        stat:
-          path: /usr/bin/python
-        ignore_errors: yes
-        register: systempython2
+    # - name: gather and delegate facts
+    #   setup:
+    #   delegate_to: "{{ item }}"
+    #   delegate_facts: True
+    #   loop: "{{ query('inventory_hostnames', 'all') }}"
+    #   run_once: true
 
-      - name: install python2 for debian based systems
-        raw: sudo apt-get -y install python-simplejson
-        ignore_errors: yes
-        when:
-          - systempython2.stat.exists is undefined or systempython2.stat.exists == false
-
-    - name: gather facts
-      setup:
-      when:
-        - not delegate_facts_host | bool
-
-    - name: gather and delegate facts
-      setup:
-      delegate_to: "{{ item }}"
-      delegate_facts: True
-      with_items: "{{ groups['all'] }}"
-      run_once: true
-      when:
-        - delegate_facts_host | bool
-
-- hosts: all
-  roles:
-    - ceph-common
+# - hosts: all
+#   roles:
+#     - ceph-common
 
 - hosts: ceph-mon
   roles:
     - ceph-mon
-    - ceph-osd
-
-- hosts: ceph-osd
-  roles:
-    - ceph-osd
+#     - ceph-osd
+#
+# - hosts: ceph-osd
+#   roles:
+#     - ceph-osd
