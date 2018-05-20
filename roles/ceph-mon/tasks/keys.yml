@@ -1,0 +1,81 @@
+---
+- name: check bootstarp keys is exists
+  stat:
+    path: /var/lib/ceph/bootstrap-osd/{{ ceph.cluster_name }}.keyring
+  register: key_exists
+
+- name: generation keys
+  shell: ceph-create-keys --cluster {{ ceph.cluster_name }} -i {{ monitor_name }} -t 30
+  when: key_exists.stat.exists == false
+
+- name: "wait for {{ ceph.cluster_name }}.client.admin.keyring exists"
+  wait_for:
+    path: /etc/ceph/{{ ceph.cluster_name }}.client.admin.keyring
+    timeout: 30
+    msg: "Timed out while waiting for keyring creation."
+  when: key_exists.stat.exists == false
+
+- name: test if initial mon keyring is in mon kv store
+  command: ceph --cluster {{ ceph.cluster_name }} config-key get initial_mon_keyring
+  changed_when: false
+  ignore_errors: true
+  check_mode: no
+  run_once: true
+  failed_when: false
+  register: is_initial_mon_keyring_in_kv
+
+- name: put initial mon keyring in mon kv store
+  command: ceph --cluster {{ ceph.cluster_name }} config-key put initial_mon_keyring {{ ceph.monitor_keyring }}
+  changed_when: false
+  check_mode: no
+  run_once: true
+  when:
+    - is_initial_mon_keyring_in_kv.rc != 0
+
+- name: create ceph mgr keyring
+  ceph_key:
+    name: "mgr.{{ ansible_hostname }}"
+    state: present
+    caps:
+      mon: allow profile mgr
+      osd: allow *
+      mds: allow *
+    cluster: "{{ ceph.cluster_name }}"
+
+- name: find keyring
+  find:
+    paths: /etc/ceph/
+    patterns: '*.keyring'
+  register: ceph_keys
+
+- name: set keys permissions
+  file:
+    path: "{{ item_keyfile }}"
+    owner: "ceph"
+    group: "ceph"
+    mode: "0600"
+  loop: "{{ ceph_keys |json_query('files[*].path') }}"
+  loop_control:
+    loop_var: item_keyfile
+
+- name: copy keys to the ansible server
+  fetch:
+    src: "{{ item_bootstrap }}"
+    dest: "{{ ceph.fetch_directory }}/{{ ceph.fsid }}/{{ item_bootstrap }}"
+    flat: yes
+  loop:
+    - /var/lib/ceph/bootstrap-osd/{{ ceph.cluster_name }}.keyring
+    - /var/lib/ceph/bootstrap-rgw/{{ ceph.cluster_name }}.keyring
+    - /var/lib/ceph/bootstrap-mds/{{ ceph.cluster_name }}.keyring
+    - /var/lib/ceph/bootstrap-rbd/{{ ceph.cluster_name }}.keyring
+  loop_control:
+    loop_var: item_bootstrap
+
+- name: copy keys to the ansible server
+  fetch:
+    src: "{{ item_config }}"
+    dest: "{{ ceph.fetch_directory }}/{{ ceph.fsid }}/{{ item_config }}"
+    flat: yes
+  loop: "{{ ceph_keys |json_query('files[*].path') }}"
+  loop_control:
+    loop_var: item_config

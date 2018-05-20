@@ -1,7 +1,7 @@
 [global]
 fsid = {{ ceph.fsid }}
 mon initial members = {% for host in groups['ceph-mon'] %}
-{{ hostvars[host].hostname }}{% if not loop.last %}, {% endif %}
+{{ hostvars[host].hostname | regex_replace('.jy.dev.tonyc.cn') }}{% if not loop.last %}, {% endif %}
 {% endfor %}
 
 mon host = {% for host in groups['ceph-mon'] %}

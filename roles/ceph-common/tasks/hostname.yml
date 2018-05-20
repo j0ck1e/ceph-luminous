@@ -7,6 +7,10 @@
     src: hosts.j2
     dest: /etc/hosts
 
+- name: gather facts
+  setup:
+
+
 # - name: persistent hostname
 #   replace:
 #     path: /etc/hostname

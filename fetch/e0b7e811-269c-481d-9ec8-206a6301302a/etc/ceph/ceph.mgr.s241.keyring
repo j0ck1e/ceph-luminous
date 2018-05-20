@@ -1,0 +1,5 @@
+[mgr.s241]
+	key = AQCBZQFbAAAAABAAOuqaoQjKFZW2Jn9717zkuA==
+	caps mds = "allow *"
+	caps mon = "allow profile mgr"
+	caps osd = "allow *"

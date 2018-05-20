@@ -1,0 +1,2 @@
+---
+monitor_name: "{{ ansible_hostname }}"

@@ -1,0 +1,14 @@
+- hosts: ceph-mon
+  gather_facts: true
+  tasks:
+    - name: find keyring
+      find:
+        paths: /etc/ceph/
+        patterns: '*.keyring'
+      register: ceph_keys
+
+    - name: list files
+      debug:
+        msg: "{{ item }}"
+      loop:
+        - "{{ (ceph_keys |json_query('files[*].path'))| join('\n') }}"
