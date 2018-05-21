@@ -13,6 +13,18 @@
 
   ansible是自动化配置管理工具，由python语言开发，因为简单实用等特点得到广泛关注，对运维开发人员来说，可以减少重复工作
 
+Ceph was born in 2006. It is a doctoral dissertation of sega. The first stable version was released in 2012. Six years of development has become the most popular storage back end. Under the cloud computing environment, distributed storage has become cloud computing. As an integral part of infrastructure, ceph has a lot of eye-catching features.
+
+  1. ceph is a software-defined storage that can run on all major Linux distributions, such as centos and ubuntu, and can also be run on unix, such as freebsd, or even the arm architecture.
+
+  2. ceph is distributed, so it can have hundreds of nodes, PB-level data storage, on the premise of a large number of disks, the overall performance of iops linear growth.
+
+  2. ceph is a unified storage system that supports traditional block storage, file system, and rapidly expanding object storage
+
+  Theoretically, as long as there is a storage requirement, you can deploy a set of ceph
+
+  Ansible is an automated configuration management tool developed by the python language. Because it is simple and practical, it has attracted wide attention and can reduce repetitive work for maintenance and development personnel.
+
 ## 关键字
 `ceph`, `ansible`, `分布式`, `云计算`，`块存储`
 ## 目录
@@ -92,14 +104,13 @@ filestore最主要的问题：
 因为引入了journal的缘故，数据会先写在journal设备上，然后再由journal向本地磁盘写入，这就造成了双写，如果是采用多副本的方案，双写带来的性能问题那就是灾难性的了。
 filestore需要本地文件系统间接管理磁盘，所以需要把对象操作先转换为符合POSIX语义的文件操作，这样比较繁琐，相对的执行效率上就大打折扣。
 
-bluestore直接对裸磁盘进行io操作，抛弃了文件系统，缩短了io路径，不在需要journal了，默认采用RocksDB作为元数据 K/V 引擎，直接解决了双写的问题，对纯机械硬盘的顺序写来说，性能有近2倍的提升。
-bluestore作为灵活的对象存储后端，可以把元数据和用户数据放在不同的存储设备上，元数据有两部分组成：
+bluestore直接对裸磁盘进行io操作，抛弃了文件系统，缩短了io路径，不在需要journal了，默认采用RocksDB作为元数据 K/V 引擎，直接解决了双写的问题，对纯机械硬盘的顺序写来说，性能有近2倍的提升。BlueFS是一种简化的日志性文件系统，实现RocksDB定义的所有接口，用于持久化rocksdb运行过程中产生的.sst和.log文件，BlueFs在设计上支持将.sst和.log分开存储，如将.log文件放在高速的NVMe ssd上，来进行写加速
 
 db 和 WAL
 
-db指的就是racksdb
+db用于存储bluestore内部元数据(.sst)
 
-WAL（write-ahead log）是racksdb预写日志
+WAL（write-ahead log）存储racksdb预写日志.log文件(.log)
 
 比较好的一种分布方法是把用户数据放在HDD或普通SSD上，db放在普通SSD,wal 放在NVMe SSD上
 
@@ -110,7 +121,7 @@ ceph 对集群中的所有资源采取池化管理(pool) , 可以针对一个poo
 第一级是将前端数据进行整形之后均匀的映射至PG以实现PG的负载均衡，第二级是PG到OSD的映射,负责将数据相对均匀的写到osd中。
 
 ### RDB
-在ceph设计之初被定义为一个分布式文件系统，但随着openstack 等云计算技术的兴起，ceph社区调整重心，往分布式块存储发展--RDB(RADOS Block Device)，RDB是ceph三大存储服务组件之一，也是最稳定使用最广泛的块存储方案了
+在ceph设计之初被定义为一个分布式文件系统，但随着openstack 等云计算技术的兴起，ceph社区调整重心，往分布式块存储发展--RDB(RADOS Block Device)，RDB是ceph三大存储服务组件之一，也是最稳定使用最广泛的块存储方案了，rbd由对象数据和元数据两部分组成，元数据存储在上文的db中，元数据保存了自身容量，快照,锁等基本信息。
 
 ## 优化
 ceph一直存在不能完全发挥存储设备性能的问题，但可以通过更改一些系统参数来让ceph解除一些枷锁
@@ -122,7 +133,6 @@ ceph一直存在不能完全发挥存储设备性能的问题，但可以通过�
   - { name: vm.min_free_kbytes, value: "{{ vm_min_free_kbytes }}" }
   - { name: fs.aio-max-nr, value: 1048576}
 ```
-针对内核参数的优化
 ### fs.file-max
 表示系统最大的打开文件的数量，主要针对系统的限制，建议优化值为26234859
 ### kernel.pid_max
@@ -142,11 +152,66 @@ Linux默认的磁盘调度算法是针对机械硬盘寻址时间的，而固态
 ### Jumbo frame（巨型帧）
 先讲讲MTU(最大传输单元)，MTU定义了一个网卡接口每一次发送数据包的最大比特，默认MTU值一般为1500，超过1500Byte的数据包将被分片，ceph集群数据是靠网络传输的，一般ceph集群都要求使用万兆以太网，MTU1500在万兆以太网的ceph集群中的发包数量是很恐怖的，大量的数据包会消耗掉交换设备的资源，拖慢整个集群，所以需要减少数据分片，在ceph节点和交换设备上把mtu改成9000能有效减少数据包分片
 
+## 部署
+下图为拓扑图
+![vgy.me](https://vgy.me/heE3pM.png)
+ansible执行命令
+`ansible-playbook deploy.yml -i hosts`
+hosts 文件定义了主机组和主机变量
+``` ini
+[ceph-mon]
+172.16.8.241  hostname=s241.jy.dev.tonyc.cn
+[ceph-osd]
+172.16.8.241  hostname=s241.jy.dev.tonyc.cn
+172.16.8.242  hostname=s242.jy.dev.tonyc.cn
+```
+定义了两个主机组，ceph-mon和ceph-osd
+主机变量定了了主机名，因为系统安装时没有没有自定义主机名，主机名会在初始化主机名和配置分发是使用。
+这里的deploy.yml 在ansible中被称为playbook，以下为playbook中简要片段
+``` yaml
+- hosts: all
+  gather_facts: False
+  tasks:
+    - name: get python2
+      stat:
+        path: /usr/bin/python
+      register: python2_exist
+    - name: install python2
+      raw: apt-get -y install python-simplejson
+      ignore_errors: yes
+      when: python2_exist.failed == true
+- hosts: all
+  roles:
+    - ceph-common
+- hosts: ceph-mon
+  roles:
+    - ceph-mon
+    - ceph-osd
+- hosts: ceph-osd
+  roles:
+    - ceph-osd
+```
+简单来说上面就是指定以下什么主机组执行什么内容，比如hosts: all 表示所有主机，hosts: ceph-mon 表示ceph-mon组的主机，tasks 表示具体执行的内容，name对执行任务写一段简单的描述信息，之后是使用的模块名，所有的模块在ansible官方可以查到使用方法，模块名里面是模块的参数，roles表示执行对象充当什么角色，一个role由许许多多的tasks组成
+执行结果：
+![vgy.me](https://vgy.me/6AQc8c.png)
+ansible执行修改过得会用changed标记，不符合判断条件的标记为skipping，已经符合执行过结果的标记为ok
+ansible是基于状态的，比方说，用一个copy模块去copy一个文件到目标服务器上，ansible会先检测文件是否和目标文件相同，使用对比哈希值的方法，如果哈希值相同，说明文件是完全相同的，这时ansible会把执行结果直接标记成ok，而不会执行copy动作，或者说安装一个软件，ansible会先检测软件是否已经安装，如果已经安装过了，那就不需要执行安装动作了，直接标记成ok状态，不过也有特殊情况，比如使用shell,command,raw模块，这些模块都是直接执行命令的，并不会检测什么状态，所以我根据ansible最佳实践，尽量不使用这类模块，就算要使用这些模块的时候先自己写一个task去检测状态，把检测结果注册一个变量，然后执行模块时先去判断一下是否符合预设条件，符合条件才会执行，这样能解决对已存在内容的重复操作的问题，事例代码如下
+``` yaml
+- name: check bootstarp keys is exists
+  stat:
+    path: /var/lib/ceph/bootstrap-osd/{{ ceph.cluster_name }}.keyring
+  register: key_exists
+- name: generation keys
+  shell: ceph-create-keys --cluster {{ ceph.cluster_name }} -i {{ monitor_name }} -t 30
+  when: key_exists.stat.exists == false
+```
+先用stat模块获取文件状态，并把状态注册成变量key_exists，之后的shell模块下面有个when，表示当key_exists这个变量的状态是不存在时，才会去执行shell模块里面具体的命令
 
 ## 参考文献
 1. [anisble 官方文档](https://docs.ansible.com)
 2. [ceph 官方文档](http://docs.ceph.com/docs/master/)
 2. [Ceph Performance Tuning Checklist](http://accelazh.github.io/ceph/Ceph-Performance-Tuning-Checklist)
+2. 谢果型，任焕文，等.ceph设计原理与实现[M].北京：机械工业出版社.2017年.8月：1-30
 ## 致谢
 时光飞逝，转眼间四年的校园时光即将结束，回首过去四年的学习生活，我要诚挚的感谢所有关心和帮助过我的老师、同学和朋友们。
 首先要衷心感谢我的指导老师朱宝华老师，我的论文是在朱老师的悉心指导下完成的，在论文选题及整个毕业设计的完成过程中朱老师都给予了我很多帮助，提供给我很多有价值的宝贵文献资料。朱老师在学术研究方面的深刻造诣、对学术研究的严谨态度以及在指导我们学习研究过程中的认真负责都让我印象深刻，同时更佩服不已。每次遇到自己解决不了的问题时，朱老师都会不厌其烦的指导我，在这里，我想向朱老师表示衷心的感谢！
