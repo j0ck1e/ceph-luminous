@@ -123,6 +123,13 @@ ceph 对集群中的所有资源采取池化管理(pool) , 可以针对一个poo
 ### RDB
 在ceph设计之初被定义为一个分布式文件系统，但随着openstack 等云计算技术的兴起，ceph社区调整重心，往分布式块存储发展--RDB(RADOS Block Device)，RDB是ceph三大存储服务组件之一，也是最稳定使用最广泛的块存储方案了，rbd由对象数据和元数据两部分组成，元数据存储在上文的db中，元数据保存了自身容量，快照,锁等基本信息。
 
+### Cache Tiering
+分层缓存为ceph 客户端提供了更好的性能，由两个池组成，一个高速且昂贵存储设备池（如ssd）作为缓存层，一个普通且便宜的存储设备（机械硬盘）作为存储层，ceph对象处理决定对象放置，分层代理完成冷数据何时向存储层迁移，存储层和缓存层对客户端来说是完全是透明的
+![cache tiering分层模型](http://docs.ceph.com/docs/master/_images/ditaa-2982c5ed3031cac4f9e40545139e51fdb0b33897.png)
+缓存代理自动处理缓存层和存储层的数据迁移，但也可以手动配置迁移模式，只要迁移模式有两种
+writeback mode: 当配置成writeback 模式时，ceph 客户端把数据写入缓存层就可以返回一个ACK
+read-proxy mode:
+
 ## 优化
 ceph一直存在不能完全发挥存储设备性能的问题，但可以通过更改一些系统参数来让ceph解除一些枷锁
 ``` yaml
@@ -206,6 +213,47 @@ ansible是基于状态的，比方说，用一个copy模块去copy一个文件�
   when: key_exists.stat.exists == false
 ```
 先用stat模块获取文件状态，并把状态注册成变量key_exists，之后的shell模块下面有个when，表示当key_exists这个变量的状态是不存在时，才会去执行shell模块里面具体的命令
+
+## 性能测试
+### 硬件配置
+
+|      | 172.16.8.241                 | 172.16.8.242                 |
+| ---- | ---------------------------- | ---------------------------- |
+| cpu  | E5-2650 v3 @ 2.30GHz 38 core | E5-2640 v3 @ 2.60GHz 30 core |
+| 内存 | 128G                         | 32G                          |
+| 硬盘 | Samsung SSD 850 Pro 1TB * 4  | Samsung SSD 850 Pro  1TB * 4 |
+| 网络 | 10000Mb/s                    | 10000Mb/s                    |
+
+故障域：host
+副本数：2
+先用4个SSD osd组成一个资源池，从资源池中创建rbd卷，使用fio测试rbd卷的性能，每次测好之后记录，然后往池中添加两个osd，能观察到osd个数和iops，延迟的关系
+fio是一款开源的IO压力测试工具，主要可以用来测试磁盘设备的iops，吞吐量和延迟，支持多种引擎，fio的作者Jens Axboe是linux内核IO的主要开发者和维护者
+测试命令：
+`fio -filename=/dev/rbd0 -bs=64k -ioengine=libaio -iodepth=32 -numjobs=4 -direct=1 -thread -rw=randwrite -size=200G -runtime=50 -group_reporting -name=test`
+其中的参数解释
+filename: 对象名，也就是块设备映射后的块设备文件名
+bs：每次读取或写入的字节数
+ioengine： io引擎，为了测试多线程的读写性能，使用libaio异步引擎
+iodepth: io队列深度, 
+numjobs：多进程
+direct：使用non-buffered io (使用O_DIRECT)，直写，不经过缓冲
+thread: 使用多线程代替多进程
+rw: 读或者写，这里使用随机写
+size: 测试的文件大小
+runtime: 运行时间
+group_reporting: 当使用`numjobs`参数时，使用分组报告而不是按任务报告
+测试数据如下
+
+| osd  | iops  | lat(ms) |
+| ---- | ----- | ------- |
+| 4    | 12278 | 10.422  |
+| 6    | 15682 | 8.16    |
+| 8    | 18652 | 6.857   |
+
+由上表数据不难看出iops会随着osd个数的增加而增加，延迟随osd个数增加而减小，换句话说就是集群越大，性能越好，在一定区间内差不多每增加两个osd，iops就会增加3000，延迟降低2ms。
+对一块samsung 850 pro 1TB进行裸盘测试，同样的测试参数能达到6000左右的iops，如果是8个的话就是48000iops，但由于ceph测试副本数是2，所以无损耗iops值是24000，但实际只达到18000iops，性能损失近1/4，
+
+
 
 ## 参考文献
 1. [anisble 官方文档](https://docs.ansible.com)
