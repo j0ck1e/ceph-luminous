@@ -3,3 +3,4 @@
     name: "{{ item }}"
   loop:
     - ceph-osd
+    - parted

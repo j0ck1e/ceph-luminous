@@ -1,6 +1,8 @@
 [ceph-mon]
-172.16.8.241  hostname=s241.jy.dev.tonyc.cn
+172.16.8.241  hostname=s241.jy.dev.tonyc.cn ceph-mgr='true'
 
 [ceph-osd]
 172.16.8.241  hostname=s241.jy.dev.tonyc.cn
 172.16.8.242  hostname=s242.jy.dev.tonyc.cn
+172.16.6.224
+172.16.6.225

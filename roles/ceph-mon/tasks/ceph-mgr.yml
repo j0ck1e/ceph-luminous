@@ -1,0 +1,47 @@
+---
+- name: create mgr directory
+  file:
+    path: /var/lib/ceph/mgr/{{ ceph.cluster_name }}-{{ ansible_hostname }}
+    state: directory
+    owner: ceph
+    group: ceph
+    mode: "0755"
+
+- name: copy ceph keyrings
+  copy:
+    src: "{{ ceph.fetch_directory }}/{{ ceph.fsid }}/{{ item.name }}"
+    dest: "{{ item.dest }}"
+    owner: ceph
+    group: ceph
+    mode: "0600"
+  loop:
+    - { name: "/etc/ceph/{{ ceph.cluster_name }}.mgr.{{ ansible_hostname }}.keyring", dest: "/var/lib/ceph/mgr/{{ ceph.cluster_name }}-{{ ansible_hostname }}/keyring" }
+    - { name: "/etc/ceph/{{ ceph.cluster_name }}.client.admin.keyring", dest: "/etc/ceph/{{ ceph.cluster_name }}.client.admin.keyring" }
+
+- name: set mgr key permissions
+  file:
+    path: /var/lib/ceph/mgr/{{ ceph.cluster_name }}-{{ ansible_hostname }}/keyring
+    owner: ceph
+    group: ceph
+    mode: "0600"
+
+- name: install ceph mgr
+  package:
+    name: ceph-mgr
+    state: present
+
+- name: start ceph-mgr
+  service:
+    name: "ceph-mgr@{{ ansible_hostname }}"
+    state: started
+    enabled: yes
+
+- name: get enabled modules from ceph-mgr
+  command: "ceph --cluster {{ ceph.cluster_name }} --format json mgr module ls"
+  register: enabled_ceph_mgr_modules
+  changed_when: false
+
+- name: enable_mgr_modules
+  shell: ceph mgr module enable {{ item }}
+  loop: "{{ ceph.enable_mgr_modules }}"
+  when: item not in ((enabled_ceph_mgr_modules.stdout | from_json).enabled_modules)

@@ -3,3 +3,6 @@
     - install.yml
     - config.yml
     - keys.yml
+
+- import_tasks: ceph-mgr.yml
+  when: hostvars[inventory_hostname]['ceph-mgr'] == 'true'

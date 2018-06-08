@@ -10,6 +10,9 @@ ceph:
     mirror: http://mirrors.ustc.edu.cn/ceph/debian-luminous/
     key: http://mirrors.ustc.edu.cn/ceph/keys/release.asc
     filename: ceph-luminous
+  enable_mgr_modules:
+    - dashboard
+    - status
   hosts:
     s241:
       devices:
